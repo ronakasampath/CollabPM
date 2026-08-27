@@ -1,0 +1,168 @@
+.box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.caret {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+.caret:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.title {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 15px;
+  background: transparent;
+}
+
+.title:hover {
+  border-color: var(--border);
+}
+
+.title:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.id {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.rowControls {
+  display: flex;
+  gap: 4px;
+}
+
+.rowControls button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+.rowControls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.description {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  min-height: 46px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+}
+
+.assignees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e8f0f8;
+  color: var(--accent-hover);
+  border-radius: 999px;
+  padding: 3px 6px 3px 10px;
+  font-size: 13px;
+}
+
+.chipRemove {
+  border: none;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.assignRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.assignRow input {
+  flex: 1;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.assignRow button {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* The two primary buttons the spec asked for: bottom-center of each box. */
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.actionBtn {
+  padding: 7px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.actionBtn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* A subtle left rail makes the nesting readable, like a PDF outline. */
+.children {
+  margin-top: 6px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}

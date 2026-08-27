@@ -1,0 +1,50 @@
+.main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.brand {
+  font-size: 40px;
+  margin: 0 0 8px;
+}
+
+.tagline {
+  color: var(--muted);
+  margin: 0 0 32px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.button,
+.buttonOutline {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  min-width: 200px;
+}
+
+.button {
+  background: var(--accent);
+  color: #fff;
+}
+
+.buttonOutline {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-decoration: underline;
+}

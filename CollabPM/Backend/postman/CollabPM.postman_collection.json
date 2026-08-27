@@ -1,0 +1,106 @@
+{
+  "info": {
+    "name": "CollabPM API",
+    "description": "CollabPM backend API. base_url and access_token are collection variables (see the Variables tab). Log in via Auth > Login and the token is captured automatically for the protected requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Liveness check. Should return 200 {\"status\":\"ok\"}."
+      }
+    },
+    {
+      "name": "Auth",
+      "description": "Register, log in, and read the current user. (Endpoints land in Steps 3-4.)",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"ronak\",\n  \"email\": \"ronak@example.com\",\n  \"password\": \"supersecret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Create a new user. Coming in Step 3."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Runs automatically AFTER the response comes back.",
+                  "// If login succeeded, grab the token from the JSON body and",
+                  "// save it into the collection variable {{access_token}} so",
+                  "// every protected request can reuse it without copy-paste.",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    if (body.access_token) {",
+                  "        pm.collectionVariables.set('access_token', body.access_token);",
+                  "        console.log('Saved access_token to collection variable.');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ronak@example.com\",\n  \"password\": \"supersecret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Log in and receive a JWT access token. Coming in Step 4. The test script auto-saves the token."
+          }
+        },
+        {
+          "name": "Me (current user)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "A protected route. Sends the saved token in the Authorization header. Coming in Step 4."
+          }
+        }
+      ]
+    }
+  ]
+}

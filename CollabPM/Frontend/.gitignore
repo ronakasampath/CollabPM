@@ -1,0 +1,17 @@
+# dependencies
+/node_modules
+
+# next.js build output
+/.next
+/out
+
+# env / secrets
+.env.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# internal transfer artifact (safe to delete)
+_pkg.tgz

@@ -1,0 +1,7 @@
+.env
+.venv
+# backups / local env variants
+.env.*
+*.bak
+
+_pkg.tgz
