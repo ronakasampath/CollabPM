@@ -89,6 +89,9 @@ def create_app(config_class=Config):
     from app.routes.templates import templates_bp
     app.register_blueprint(templates_bp, url_prefix="/api")
 
+    from app.routes.admin_reports import admin_reports_bp
+    app.register_blueprint(admin_reports_bp, url_prefix="/api/admin")
+
     # --- Custom CLI command ---
     # Registers `flask init-db`. Running it creates every table that doesn't
     # already exist. This is a simple stand-in for real migrations; later we'll

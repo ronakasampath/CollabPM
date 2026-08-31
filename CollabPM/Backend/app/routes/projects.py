@@ -161,3 +161,25 @@ def list_sections_flat(project_id):
     return jsonify(sections=[
         {"id": s.id, "title": s.title, "parent_id": s.parent_id} for s in all_sections
     ]), 200
+
+
+@projects_bp.delete("/<int:project_id>/members/<int:user_id>")
+@project_role_required("leader")
+def remove_member_route(project_id, user_id):
+    try:
+        ps.remove_member(Project.query.get(project_id), user_id)
+    except ServiceError as err:
+        return jsonify(error=err.message), err.status_code
+    return jsonify(message="Member removed."), 200
+
+from app.services import report_service as rs
+
+@projects_bp.post("/<int:project_id>/report")
+@project_role_required("member")
+def report_project_route(project_id):
+    data = request.get_json(silent=True) or {}
+    try:
+        report = rs.report_project(g.current_user, Project.query.get(project_id), data.get("reason", ""))
+    except ServiceError as err:
+        return jsonify(error=err.message), err.status_code
+    return jsonify(report=report.to_dict()), 201

@@ -41,3 +41,18 @@ export async function getCurrentUser() {
 export function logout() {
   clearToken();
 }
+
+
+
+export async function loginWithGoogle(credential) {
+  const data = await apiFetch("/auth/google", { method: "POST", body: { credential } });
+  if (data && data.access_token) saveToken(data.access_token);
+  return data;
+}
+
+export async function requestPasswordReset(email) {
+  return apiFetch("/auth/forgot-password", { method: "POST", body: { email } });
+}
+export async function resetPassword(token, password) {
+  return apiFetch("/auth/reset-password", { method: "POST", body: { token, password } });
+}

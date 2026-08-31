@@ -7,6 +7,9 @@ from app.services.auth_service import (
     authenticate,
     verify_email,
     resend_code,
+    request_password_reset,
+    reset_password,
+    authenticate_with_google,
     AuthError,
 )
 
@@ -129,3 +132,41 @@ def me():
         # Token was valid but the user was since deleted.
         return jsonify(error="User not found."), 404
     return jsonify(user=user.to_dict()), 200
+
+
+@auth_bp.post("/forgot-password")
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify(error="email is required."), 400
+    request_password_reset(email)
+    # Same response either way -- don't reveal whether the email exists.
+    return jsonify(message="If that email is registered, a reset link has been sent."), 200
+
+
+@auth_bp.post("/reset-password")
+def reset_password_route():
+    data = request.get_json(silent=True) or {}
+    token = data.get("token") or ""
+    new_password = data.get("password") or ""
+    if not token or not new_password:
+        return jsonify(error="token and password are required."), 400
+    try:
+        reset_password(token, new_password)
+    except AuthError as err:
+        return jsonify(error=err.message), err.status_code
+    return jsonify(message="Password reset. You can now log in."), 200
+
+@auth_bp.post("/google")
+def google_login():
+    data = request.get_json(silent=True) or {}
+    credential = data.get("credential")
+    if not credential:
+        return jsonify(error="credential is required."), 400
+    try:
+        user = authenticate_with_google(credential)
+    except AuthError as err:
+        return jsonify(error=err.message), err.status_code
+    access_token = create_access_token(identity=str(user.id))
+    return jsonify(access_token=access_token, user=user.to_dict()), 200

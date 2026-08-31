@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login, register, verifyEmail, resendCode } from "@/lib/auth";
 import styles from "./AuthForm.module.css";
-
+import { useEffect, useRef } from "react";
+import { loginWithGoogle } from "@/lib/auth";
 // ONE component powers /login and /register. Registration is now two steps:
 // submit details -> enter the emailed 6-digit code -> verified + logged in.
 export default function AuthForm({ mode }) {
@@ -20,6 +21,43 @@ export default function AuthForm({ mode }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const googleBtnRef = useRef(null);
+
+useEffect(() => {
+  function renderButton() {
+    if (!window.google || !googleBtnRef.current) return;
+    window.google.accounts.id.initialize({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      callback: async (response) => {
+        setError("");
+        setLoading(true);
+        try {
+          await loginWithGoogle(response.credential);
+          router.push("/home");
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+    window.google.accounts.id.renderButton(googleBtnRef.current, {
+      theme: "outline", size: "large", width: 280,
+    });
+  }
+  if (window.google) {
+    renderButton();
+  } else {
+    const interval = setInterval(() => {
+      if (window.google) {
+        clearInterval(interval);
+        renderButton();
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }
+}, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -107,6 +145,10 @@ export default function AuthForm({ mode }) {
           <button type="button" className={styles.linkish} onClick={handleResend}>
             Resend code
           </button>
+          <div style={{ textAlign: "center", margin: "16px 0 4px" }}>
+            <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 10 }}>or</p>
+            <div ref={googleBtnRef} style={{ display: "flex", justifyContent: "center" }} />
+          </div>
         </p>
       </div>
     );
@@ -140,6 +182,11 @@ export default function AuthForm({ mode }) {
             minLength={8}
           />
         </label>
+        {!isRegister && (
+          <div style={{ textAlign: "right", marginTop: -6 }}>
+          <Link href="/forgot-password" style={{ fontSize: 13 }}>Forgot password?</Link>
+          </div>
+        )}
 
         {info && <p className={styles.info}>{info}</p>}
         {error && <p className={styles.error}>{error}</p>}

@@ -10,7 +10,7 @@ import { listTemplates, applyTemplateToProject } from "@/lib/templates";
 import Sidebar from "@/components/Shell/Sidebar";
 import styles from "./AppChrome.module.css";
 
-const BARE = new Set(["/", "/login", "/register"]);
+const BARE = new Set(["/", "/login", "/register", "/forgot-password", "/reset-password"]);
 
 export default function AppChrome({ children }) {
   const pathname = usePathname();
@@ -53,17 +53,15 @@ export default function AppChrome({ children }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [bare]);
 
-
   useEffect(() => {
-  if (bare) return;
-  const openHandler = () => setNewProjectOpen(true);
-  window.addEventListener("open-new-project", openHandler);
-  return () => window.removeEventListener("open-new-project", openHandler);
-}, [bare]);
+    if (bare) return;
+    const openHandler = () => setNewProjectOpen(true);
+    window.addEventListener("open-new-project", openHandler);
+    return () => window.removeEventListener("open-new-project", openHandler);
+  }, [bare]);
 
-
-  // Bare routes (/, /login, /register) get NOTHING extra -- no header, no
-  // sidebar. This must stay a plain passthrough.
+  // Bare routes (/, /login, /register, /forgot-password, /reset-password) get
+  // NOTHING extra -- no header, no sidebar. This must stay a plain passthrough.
   if (bare) return <>{children}</>;
 
   const displayName = (account && account.username) || "...";
@@ -108,10 +106,10 @@ export default function AppChrome({ children }) {
         </div>
       </header>
 
-<div style={{ display: "flex", minHeight: "calc(100vh - 56px)" }}>
-  <Sidebar />
-  <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-</div>
+      <div style={{ display: "flex", minHeight: "calc(100vh - 56px)" }}>
+        <Sidebar />
+        <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      </div>
 
       {searchOpen && <SearchOverlay projects={projects} onClose={() => setSearchOpen(false)} />}
       {notifOpen && (

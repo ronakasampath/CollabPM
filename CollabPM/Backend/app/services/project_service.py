@@ -87,3 +87,12 @@ def reactivate_project(project: Project):
     project.status = "active"
     db.session.commit()
     return project
+
+def remove_member(project: Project, target_user_id: int):
+    target = get_membership(project.id, target_user_id)
+    if not target:
+        raise ServiceError("That user is not a member of the project.", 404)
+    if target.role == ProjectRole.leader:
+        raise ServiceError("The project leader can't be removed. Reassign leadership first.", 400)
+    db.session.delete(target)
+    db.session.commit()

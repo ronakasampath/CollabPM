@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { listProjects } from "@/lib/projects";
+import { getCurrentUser } from "@/lib/auth";
 import styles from "./Sidebar.module.css";
 
 export default function Sidebar() {
@@ -11,9 +12,16 @@ export default function Sidebar() {
     const router = useRouter();
     const [projects, setProjects] = useState([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         listProjects().then((d) => setProjects(d.projects)).catch(() => setProjects([]));
+    }, []);
+
+    useEffect(() => {
+        getCurrentUser()
+            .then((d) => setIsAdmin(d.user?.system_role === "admin"))
+            .catch(() => setIsAdmin(false));
     }, []);
 
     function goToProject(id) {
@@ -60,7 +68,11 @@ export default function Sidebar() {
             <Link href="/settings" className={`${styles.item} ${pathname === "/settings" ? styles.active : ""}`}>
                 Settings
             </Link>
+            {isAdmin && (
+                <Link href="/admin/reports" className={`${styles.item} ${pathname === "/admin/reports" ? styles.active : ""}`}>
+                    Reports
+                </Link>
+            )}
         </aside>
     );
-
 }

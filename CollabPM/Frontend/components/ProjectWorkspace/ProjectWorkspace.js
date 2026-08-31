@@ -9,6 +9,7 @@ import { setSectionStatus, assignSection, submitSectionForReview, reviewSection,
 import { listVotes, createVote, castBallot } from "@/lib/votes";
 import { searchUsers } from "@/lib/users";
 import { saveProjectAsTemplate } from "@/lib/templates";
+import { reportProject, removeMember } from "@/lib/reports";
 import Breadcrumbs from "@/components/Shell/Breadcrumbs";
 import styles from "./ProjectWorkspace.module.css";
 
@@ -81,6 +82,7 @@ function ProjectDetail({ projectId, me }) {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [schedulingFor, setSchedulingFor] = useState(null);
   const [allSections, setAllSections] = useState([]);
+  const [reportingProject, setReportingProject] = useState(false);
 
   const refreshProject = useCallback(() => {
     return getProject(projectId).then((d) => setProject(d.project)).catch((e) => setError(e.message));
@@ -197,6 +199,24 @@ function ProjectDetail({ projectId, me }) {
     listSectionsFlat(projectId).then((d) => setAllSections(d.sections)).catch(() => setAllSections([]));
     setSchedulingFor(node);
   }
+  async function handleReportProject(reason) {
+    try {
+      await reportProject(projectId, reason);
+      setReportingProject(false);
+      alert("Report submitted.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  async function handleKickMember(userId) {
+    if (!window.confirm("Remove this member from the project?")) return;
+    try {
+      await removeMember(projectId, userId);
+      await refreshProject();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
   const deadlines = collectDeadlines(project.sections);
 
@@ -228,6 +248,9 @@ function ProjectDetail({ projectId, me }) {
               Discontinue project
             </button>
           )}
+
+          <button className={styles.btn} onClick={() => setReportingProject(true)}>Report project</button>
+
           {isLeader && project.status === "discontinued" && (
             <button className={styles.btn} onClick={handleReactivate}>
               Reactivate project
@@ -291,6 +314,12 @@ function ProjectDetail({ projectId, me }) {
                 {isLeader && m.role !== "leader" && !isLocked && (
                   <button className={styles.btn} style={{ fontSize: 11, padding: "2px 8px" }} onClick={() => setPermissionsFor(m)}>
                     Permissions
+                  </button>
+                )}
+                {isLeader && m.role !== "leader" && !isLocked && (
+                  <button className={styles.btn} style={{ color: "var(--danger)", fontSize: 11, padding: "2px 8px" }}
+                    onClick={() => handleKickMember(m.user_id)}>
+                    Remove
                   </button>
                 )}
               </div>
@@ -358,6 +387,13 @@ function ProjectDetail({ projectId, me }) {
           allSections={allSections}
           onSave={(payload) => handleSaveSchedule(schedulingFor.id, payload)}
           onClose={() => setSchedulingFor(null)}
+        />
+      )}
+      {reportingProject && (
+        <ReportModal
+          title="Report this project"
+          onSubmit={handleReportProject}
+          onClose={() => setReportingProject(false)}
         />
       )}
     </main>
@@ -499,6 +535,31 @@ function SaveTemplateModal({ onSave, onClose }) {
             onClick={() => onSave(name.trim(), description, isPublic, naming === "generic")}
           >
             Save template
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- report popup ---------- */
+
+function ReportModal({ title, onSubmit, onClose }) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className={styles.backdrop} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className={styles.modalHead}>
+          <h2 className={styles.modalTitle}>{title}</h2>
+          <button className={styles.close} onClick={onClose} aria-label="Close">&times;</button>
+        </div>
+        <textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)}
+          placeholder="Explain why you're reporting this..."
+          style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 6 }} />
+        <div className={styles.modalActions}>
+          <button className={styles.btn} onClick={onClose}>Cancel</button>
+          <button className={styles.btnPrimary} disabled={!reason.trim()} onClick={() => onSubmit(reason.trim())}>
+            Submit report
           </button>
         </div>
       </div>

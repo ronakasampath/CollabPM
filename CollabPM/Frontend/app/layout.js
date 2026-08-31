@@ -1,6 +1,6 @@
 import "./globals.css";
 import AppChrome from "@/components/Shell/AppChrome";
-
+import Script from "next/script";
 // In the App Router, this is the ROOT layout. It wraps every page. We put the
 // app chrome (top bar + search + account + notifications) here so it appears on
 // every app page; AppChrome hides itself on the marketing/auth routes.
@@ -12,9 +12,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>
-        <AppChrome>{children}</AppChrome>
-      </body>
+    <body>
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+      <AppChrome>{children}</AppChrome>
+    </body>
     </html>
   );
 }

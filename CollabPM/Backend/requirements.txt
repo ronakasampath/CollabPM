@@ -14,3 +14,6 @@ Flask-JWT-Extended==4.7.1     # issue & verify JWT access tokens
 # --- Frontend integration ---
 Flask-Cors==5.0.0             # let the Next.js app (localhost:3000) call the API
 
+google-auth==2.35.0
+
+requests==2.32.3

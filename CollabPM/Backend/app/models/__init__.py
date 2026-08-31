@@ -9,3 +9,4 @@ from app.models.vote import Vote, VoteBallot  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.project_template import ProjectTemplate  # noqa: F401
 from app.models.template_access import TemplateAccess  # noqa: F401
+from app.models.report import Report, ReportTargetType, ReportStatus  # noqa: F401

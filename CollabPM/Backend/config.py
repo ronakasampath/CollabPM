@@ -75,5 +75,6 @@ class Config:
 
     # How long an email verification code stays valid.
     VERIFICATION_CODE_TTL = timedelta(minutes=15)
-
+    FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 

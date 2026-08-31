@@ -29,8 +29,12 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
 
-    # bcrypt hash, never the raw password.
-    password_hash = db.Column(db.String(255), nullable=False)
+    # bcrypt hash. Nullable because Google-sign-in-only accounts have none.
+    password_hash = db.Column(db.String(255), nullable=True)
+
+    # Google sign-in support: Google's stable, unique id for this user.
+    # Set when the account was created via (or later linked to) Google.
+    google_sub = db.Column(db.String(255), nullable=True, unique=True)
 
     # System role: admin or user. Everyone starts as a plain user; an admin is
     # promoted explicitly (via the `flask make-admin` command).
@@ -39,6 +43,9 @@ class User(db.Model):
         nullable=False,
         default=SystemRole.user,
     )
+
+    # active | banned -- set by admin action after a report is upheld.
+    account_status = db.Column(db.String(20), nullable=False, default="active")
 
     # The user's IANA timezone (e.g. "Asia/Colombo"). We store it so we can show
     # each person their section deadlines in THEIR local time. Defaults to UTC.
@@ -50,6 +57,10 @@ class User(db.Model):
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     verification_code = db.Column(db.String(6), nullable=True)
     code_expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # --- Password reset ---
+    reset_token = db.Column(db.String(64), nullable=True)
+    reset_token_expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     created_at = db.Column(
         db.DateTime(timezone=True),
@@ -66,6 +77,7 @@ class User(db.Model):
             "system_role": self.system_role.value,
             "timezone": self.timezone,
             "is_verified": self.is_verified,
+            "account_status": self.account_status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
