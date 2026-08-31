@@ -118,3 +118,57 @@ def mark_read(notification, read=True):
 def mark_all_read(user_id):
     Notification.query.filter_by(user_id=user_id, read=False).update({"read": True})
     db.session.commit()
+
+
+
+def notify_submitted_for_review(section, submitter):
+    project = section.project
+    leader_membership = project.leader_membership()
+    if not leader_membership:
+        return
+    notify(
+        leader_membership.user_id,
+        "review_requested",
+        f"{submitter.username} submitted '{section.title}' for review",
+        body=f"Review the work on '{section.title}' in '{project.name}'.",
+        link=f"/project?project={project.id}",
+        project_id=project.id,
+    )
+
+
+
+def scan_overdue():
+    """Create an 'overdue' notification for each assignee of a section whose
+    computed deadline has already passed and isn't done, once per section.
+    """
+    now = datetime.now(timezone.utc)
+    created = 0
+    candidates = Section.query.filter(Section.status != SectionStatus.done).all()
+
+    for s in candidates:
+        deadline = s.computed_deadline()
+        if deadline is None:
+            continue
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+        if deadline > now:
+            continue  # not overdue yet
+
+        for u in s.assignees:
+            already = Notification.query.filter_by(
+                user_id=u.id, type="overdue", project_id=s.project_id
+            ).filter(Notification.title.like(f"%{s.title}%")).first()
+            if already:
+                continue
+            notify(
+                u.id,
+                "overdue",
+                f"Overdue: {s.title}",
+                body=f"'{s.title}' in '{s.project.name}' was due {deadline.isoformat()} and is not yet complete.",
+                link=f"/project?project={s.project_id}",
+                project_id=s.project_id,
+                commit=False,
+            )
+            created += 1
+    db.session.commit()
+    return created

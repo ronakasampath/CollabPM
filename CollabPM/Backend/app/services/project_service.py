@@ -60,3 +60,30 @@ def set_leader(project: Project, new_leader_user_id: int) -> ProjectMember:
         m.role = ProjectRole.leader if m.user_id == new_leader_user_id else ProjectRole.member
     db.session.commit()
     return target
+
+def set_member_permissions(project: Project, user_id: int, can_manage_sections=None, can_review_work=None) -> ProjectMember:
+    target = get_membership(project.id, user_id)
+    if not target:
+        raise ServiceError("That user is not a member of the project.", 404)
+    if target.role == ProjectRole.leader:
+        raise ServiceError("The project leader already has full access.", 400)
+    if can_manage_sections is not None:
+        target.can_manage_sections = can_manage_sections
+    if can_review_work is not None:
+        target.can_review_work = can_review_work
+    db.session.commit()
+    return target
+
+
+def discontinue_project(project: Project):
+    project.status = "discontinued"
+    db.session.commit()
+    return project
+
+
+def reactivate_project(project: Project):
+    if project.status == "completed":
+        raise ServiceError("A completed project can't be reactivated.", 400)
+    project.status = "active"
+    db.session.commit()
+    return project

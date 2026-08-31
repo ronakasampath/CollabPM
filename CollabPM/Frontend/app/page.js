@@ -37,6 +37,9 @@ export default function Home() {
           <Link className={styles.button} href="/home">
             Go to your dashboard
           </Link>
+          <Link className={styles.buttonOutline} href="/project">
+              Your projects
+          </Link>
           <Link className={styles.buttonOutline} href="/builder">
             Open the builder
           </Link>

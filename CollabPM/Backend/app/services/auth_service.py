@@ -8,6 +8,44 @@ from app.models.user import User, SystemRole
 from app.utils.security import hash_password, verify_password
 from app.services.email_service import send_email
 
+from datetime import timedelta
+
+UNVERIFIED_EXPIRY = timedelta(hours=1)
+
+
+def _purge_expired_unverified(email=None, username=None):
+    """Delete unverified accounts whose verification code has expired --
+    freeing up their username/email for a new registration attempt."""
+    cutoff = datetime.now(timezone.utc) - UNVERIFIED_EXPIRY
+    query = User.query.filter(User.is_verified.is_(False), User.created_at < cutoff)
+    if email:
+        query = query.filter(db.or_(User.email == email, User.username == username))
+    for stale_user in query.all():
+        db.session.delete(stale_user)
+    db.session.commit()
+
+
+def register_user(username: str, email: str, password: str) -> User:
+    """Create an UNVERIFIED user and email them a verification code."""
+    _purge_expired_unverified(email=email, username=username)
+
+    if User.query.filter_by(username=username).first():
+        raise AuthError("That username is already taken.", status_code=409)
+    existing = User.query.filter_by(email=email).first()
+    if existing:
+        if existing.is_verified:
+            raise AuthError("That email is already registered.", status_code=409)
+        existing.password_hash = hash_password(password)
+        existing.username = username
+        db.session.commit()
+        _send_code(existing)
+        return existing
+
+    user = User(username=username, email=email, password_hash=hash_password(password), is_verified=False)
+    db.session.add(user)
+    db.session.commit()
+    _send_code(user)
+    return user
 
 class AuthError(Exception):
     def __init__(self, message, status_code=400):

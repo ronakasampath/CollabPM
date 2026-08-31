@@ -1,172 +1,190 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import {
-  useProjects,
-  markSectionDone,
-  myTasks,
-  projectProgress,
-  CURRENT_USER,
-} from "@/lib/projectStore";
-import { timeLeftInfo, soonestDeadline } from "@/lib/time";
+import { getCurrentUser } from "@/lib/auth";
+import { listProjects } from "@/lib/projects";
+import { listNotifications, markNotificationRead } from "@/lib/notificationsApi";
+import { listMyInvitations, acceptInvitation, declineInvitation } from "@/lib/invitations";
 import styles from "./UserDashboard.module.css";
 
-const STATUS = {
-  done: { label: "Done", color: "#2f855a", bg: "#e6f4ec" },
-  in_progress: { label: "In progress", color: "#b7791f", bg: "#fbf1dc" },
-  not_started: { label: "Not started", color: "#718096", bg: "#edf1f5" },
-};
-
-// The per-user home: a stat card per project the user is on, and a popup with
-// their current work + mark-complete, driven by the shared store.
 export default function UserDashboard() {
-  const projects = useProjects();
-  const [openId, setOpenId] = useState(null); // which project's popup is open
+  const [me, setMe] = useState(null);
+  const [projects, setProjects] = useState(null);
+  const [notifications, setNotifications] = useState(null);
+  const [invitations, setInvitations] = useState(null);
+  const [error, setError] = useState("");
 
-  const [now, setNow] = useState(null);
   useEffect(() => {
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 60000);
-    return () => clearInterval(id);
+    getCurrentUser().then((d) => setMe(d.user)).catch(() => setMe(null));
   }, []);
 
-  // Only the projects this user belongs to.
-  const mine = projects.filter((p) => p.members.includes(CURRENT_USER));
-  const openProject = mine.find((p) => p.id === openId) || null;
+  const refreshAll = useCallback(() => {
+    listProjects().then((d) => setProjects(d.projects)).catch((e) => setError(e.message));
+    listNotifications().then((d) => setNotifications(d.notifications)).catch(() => setNotifications([]));
+    listMyInvitations().then((d) => setInvitations(d.invitations)).catch(() => setInvitations([]));
+  }, []);
+
+  useEffect(refreshAll, [refreshAll]);
+
+  async function handleAccept(id) {
+    try { await acceptInvitation(id); refreshAll(); } catch (e) { setError(e.message); }
+  }
+  async function handleDecline(id) {
+    try { await declineInvitation(id); refreshAll(); } catch (e) { setError(e.message); }
+  }
+  async function handleReadNotif(id) {
+    try { await markNotificationRead(id); } catch {}
+  }
+
+  const displayName = me ? me.username : "...";
 
   return (
-    <main className={styles.wrap}>
-      <h1 className={styles.heading}>Welcome, {CURRENT_USER}</h1>
-      <p className={styles.sub}>Your projects and what needs doing.</p>
+    <main className={styles.wrap} style={{ maxWidth: 1180 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+        {/* main column */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <h1 className={styles.heading}>Welcome, {displayName}</h1>
+              <p className={styles.sub}>Your projects and what needs doing.</p>
+            </div>
+            <Link href="/project" style={{
+              padding: "9px 16px", border: "1px solid var(--accent)", borderRadius: "var(--radius)",
+              color: "var(--accent)", textDecoration: "none", fontWeight: 600, fontSize: 14, whiteSpace: "nowrap",
+            }}>
+              View all projects
+            </Link>
+          </div>
 
-      <div className={styles.cards}>
-        {mine.map((project) => {
-          const tasks = myTasks(project, CURRENT_USER);
-          const openTasks = tasks.filter((t) => t.status !== "done");
-          const pct = Math.round(projectProgress(project));
-          const due = soonestDeadline(tasks, now);
-          const role = project.leader === CURRENT_USER ? "Leader" : "Member";
-          return (
-            <button
-              key={project.id}
-              className={styles.card}
-              onClick={() => setOpenId(project.id)}
-            >
-              <div className={styles.cardTop}>
-                <h2 className={styles.cardName}>{project.name}</h2>
-                <span className={styles.role}>{role}</span>
-              </div>
-              <div className={styles.cardStats}>
-                <div className={styles.stat}>
-                  <span className={styles.statNum}>{openTasks.length}</span>
-                  <span className={styles.statLabel}>my open tasks</span>
-                </div>
-                <div className={styles.stat}>
-                  <span className={styles.statNum}>{pct}%</span>
-                  <span className={styles.statLabel}>project done</span>
-                </div>
-              </div>
-              <div
-                className={`${styles.timeleft} ${due.overdue ? styles.overdue : ""}`}
-              >
-                {due.none
-                  ? "Your work here is done"
-                  : due.label
-                  ? `Soonest deadline: ${due.label}`
-                  : " "}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+          {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
 
-      {openProject && (
-        <WorkPopup
-          project={openProject}
-          now={now}
-          onClose={() => setOpenId(null)}
-        />
-      )}
-    </main>
-  );
-}
+          {projects === null ? (
+  <>
+    <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--muted)", margin: "24px 0 12px" }}>
+      Ongoing projects
+    </h2>
+    <p className={styles.sub}>Loading...</p>
+  </>
+) : projects.length === 0 ? (
+  <div
+    style={{
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      textAlign: "center", padding: "80px 24px", minHeight: 320,
+    }}
+  >
+    <h2 style={{ fontSize: 18, margin: "0 0 8px", color: "var(--text)" }}>No projects yet</h2>
+    <p style={{ margin: "0 0 16px", color: "var(--muted)", maxWidth: 320 }}>
+      Create your first project to start breaking down work with your team.
+    </p>
+    <button
+      onClick={() => window.dispatchEvent(new Event("open-new-project"))}
+      style={{
+        padding: "9px 18px", border: "none", borderRadius: "var(--radius)",
+        background: "var(--accent)", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 14,
+      }}
+    >
+      Create a project
+    </button>
+  </div>
+) : (
+  <>
+    <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--muted)", margin: "24px 0 12px" }}>
+      Ongoing projects
+    </h2>
+    <div className={styles.cards}>
+      {projects.map((p) => {
+        const membership = (p.members || []).find((m) => m.user_id === (me && me.id));
+        const role = membership && membership.role === "leader" ? "Leader" : "Member";
+        return (
+          <Link
+            key={p.id}
+            href={`/project?project=${p.id}`}
+            className={styles.card}
+            style={{ display: "block", textDecoration: "none", color: "inherit" }}
+          >
+            <div className={styles.cardTop}>
+              <h2 className={styles.cardName}>{p.name}</h2>
+              <span className={styles.role}>{role}</span>
+              {p.status === "discontinued" && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--danger)", background: "#fdecec", padding: "2px 8px", borderRadius: 999 }}>
+                  Discontinued
+                </span>
+              )}
+              {p.status === "completed" && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#2f855a", background: "#e6f4ec", padding: "2px 8px", borderRadius: 999 }}>
+                  Completed
+                </span>
+              )}
+            </div>
+            <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 13 }}>
+              {(p.members || []).length} member{(p.members || []).length === 1 ? "" : "s"}
+            </p>
+            <p style={{ margin: "12px 0 0", color: "var(--muted)", fontSize: 12, fontStyle: "italic" }}>
+              Stats coming soon
+            </p>
+          </Link>
+        );
+      })}
+    </div>
+  </>
+)}
+        </div>
 
-function WorkPopup({ project, now, onClose }) {
-  // Read tasks fresh from the (already re-rendered) project each time.
-  const tasks = myTasks(project, CURRENT_USER);
-
-  // Close on Escape, for good measure.
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return (
-    <div className={styles.backdrop} onClick={onClose}>
-      {/* stopPropagation so clicking inside the modal doesn't close it */}
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHead}>
-          <h2 className={styles.modalTitle}>Your work: {project.name}</h2>
-          <button className={styles.close} onClick={onClose} aria-label="Close">
-            &times;
+        {/* right rail — persistent, Facebook-style */}
+        <aside style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 16 }}>
+         <div className={styles.card} style={{ cursor: "default" }}>
+  <h2 style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "var(--muted)" }}>
+    Invitations
+  </h2>
+  {invitations === null ? (
+    <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>Loading...</p>
+  ) : invitations.length === 0 ? (
+    <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>No pending invitations.</p>
+  ) : (
+    invitations.map((inv) => (
+      <div key={inv.id} style={{ padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 13 }}>
+          <strong>{inv.inviter_username}</strong> invited you to <strong>{inv.project_name}</strong> as {inv.role}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <button onClick={() => handleAccept(inv.id)}
+            style={{ padding: "4px 10px", border: "none", borderRadius: 6, background: "var(--accent)", color: "#fff", fontSize: 12, fontWeight: 600 }}>
+            Accept
+          </button>
+          <button onClick={() => handleDecline(inv.id)}
+            style={{ padding: "4px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", fontSize: 12 }}>
+            Decline
           </button>
         </div>
-        <p className={styles.modalSub}>
-          {project.leader === CURRENT_USER ? "You lead this project." : `Led by ${project.leader}.`}
-        </p>
-
-        {tasks.length === 0 ? (
-          <p className={styles.empty}>Nothing is assigned to you here.</p>
-        ) : (
-          tasks.map((t) => {
-            const s = STATUS[t.status];
-            const info = timeLeftInfo(t, now);
-            return (
-              <div key={t.id} className={styles.task}>
-                <div>
-                  <div className={styles.taskName}>{t.title}</div>
-                  <div className={styles.taskPath}>{t.path}</div>
-                </div>
-                <div className={styles.taskRight}>
-                  <span
-                    className={styles.pill}
-                    style={{ background: s.bg, color: s.color }}
-                  >
-                    <span className={styles.dot} style={{ background: s.color }} />
-                    {s.label}
-                  </span>
-                  {t.status === "done" ? (
-                    <span className={styles.doneTag}>{info.label || "done"}</span>
-                  ) : (
-                    <button
-                      className={styles.completeBtn}
-                      onClick={() => markSectionDone(project.id, t.id)}
-                    >
-                      Mark complete
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-
-        <div className={styles.modalActions}>
-          <Link className={styles.viewBtn} href={`/project?project=${project.id}`}>
-            Open project
-          </Link>
-          <Link
-            className={styles.viewBtn}
-            href={`/dashboard?project=${project.id}`}
-          >
-            View dashboard
-          </Link>
-        </div>
       </div>
-    </div>
+    ))
+  )}
+</div>
+
+          <div className={styles.card} style={{ cursor: "default" }}>
+            <h2 style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "var(--muted)" }}>
+              Notifications
+            </h2>
+            {notifications === null ? (
+              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>Loading...</p>
+            ) : notifications.length === 0 ? (
+              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>You are all caught up.</p>
+            ) : (
+              notifications.map((n) => (
+                <Link key={n.id} href={n.link || "/home"} onClick={() => handleReadNotif(n.id)}
+                  style={{
+                    display: "block", padding: "8px 0", borderTop: "1px solid var(--border)",
+                    textDecoration: "none", color: "inherit", opacity: n.read ? 0.55 : 1,
+                  }}>
+                  <div style={{ fontSize: 13, fontWeight: n.read ? 400 : 600 }}>{n.title}</div>
+                  {n.body && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{n.body}</div>}
+                </Link>
+              ))
+            )}
+          </div>
+        </aside>
+      </div>
+    </main>
   );
 }

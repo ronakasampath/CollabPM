@@ -63,3 +63,11 @@ def cast_ballot(vote_id):
     except ServiceError as err:
         return jsonify(error=err.message), err.status_code
     return jsonify(vote=vote.to_dict(g.current_user.id)), 200
+
+
+
+@votes_bp.get("/votes/mine")
+@login_required
+def my_votes():
+    votes = vs.my_called_votes(g.current_user.id)
+    return jsonify(votes=[v.to_dict(g.current_user.id) for v in votes]), 200

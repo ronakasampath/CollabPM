@@ -1,5 +1,6 @@
 "use client";
 
+import Breadcrumbs from "@/components/Shell/Breadcrumbs";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
@@ -29,9 +30,7 @@ export default function SettingsPage() {
 
   return (
     <main style={{ maxWidth: 620, margin: "0 auto", padding: "28px 24px 80px" }}>
-      <Link href="/home" style={{ fontSize: 14 }}>
-        &larr; My dashboard
-      </Link>
+   <Breadcrumbs items={[{ label: "Dashboard", href: "/home" }, { label: "Settings" }]} />
       <h1 style={{ margin: "14px 0 20px", fontSize: 24 }}>Account settings</h1>
 
       {!checked ? (

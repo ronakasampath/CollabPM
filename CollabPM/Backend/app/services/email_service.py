@@ -1,4 +1,5 @@
 import smtplib
+import ssl
 from email.message import EmailMessage
 
 from flask import current_app
@@ -9,11 +10,7 @@ def send_email(to_address, subject, body):
 
     If MAIL_USERNAME / MAIL_PASSWORD are not configured, we DON'T fail -- we log
     the email to the server console instead, so the whole verification /
-    notification flow is testable locally without real credentials. Add Gmail
-    SMTP settings to .env to switch on real delivery.
-
-    Never let an email failure break the request that triggered it: we catch
-    and log, and return a bool for whether it actually sent.
+    notification flow is testable locally without real credentials.
     """
     cfg = current_app.config
     username = cfg.get("MAIL_USERNAME")
@@ -33,11 +30,22 @@ def send_email(to_address, subject, body):
     msg.set_content(body)
 
     try:
+        context = ssl.create_default_context()
         with smtplib.SMTP(cfg["MAIL_SERVER"], cfg["MAIL_PORT"], timeout=15) as server:
-            server.starttls()
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
             server.login(username, password)
             server.send_message(msg)
+        current_app.logger.info("Email sent to %s: %s", to_address, subject)
         return True
-    except Exception as exc:  # noqa: BLE001 - we log everything and move on
+    except smtplib.SMTPAuthenticationError:
+        current_app.logger.error(
+            "SMTP authentication failed for %s. Check MAIL_USERNAME/MAIL_PASSWORD "
+            "(Gmail requires an App Password, not your normal password).",
+            username,
+        )
+        return False
+    except Exception as exc:  # noqa: BLE001 - log everything, never crash the caller
         current_app.logger.error("Failed to send email to %s: %s", to_address, exc)
         return False

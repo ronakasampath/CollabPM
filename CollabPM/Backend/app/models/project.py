@@ -17,7 +17,6 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text, default="")
-    # Who created it (becomes the first leader).
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     created_at = db.Column(
         db.DateTime(timezone=True),
@@ -47,6 +46,8 @@ class Project(db.Model):
             data["members"] = [m.to_dict() for m in self.memberships]
         return data
 
+    status = db.Column(db.String(20), nullable=False, default="active")
+
 
 class ProjectMember(db.Model):
     """Join row between a user and a project, carrying the project-level role.
@@ -69,6 +70,8 @@ class ProjectMember(db.Model):
         nullable=False,
         default=ProjectRole.member,
     )
+    can_manage_sections = db.Column(db.Boolean, nullable=False, default=False)
+    can_review_work = db.Column(db.Boolean, nullable=False, default=False)
 
     project = db.relationship("Project", back_populates="memberships")
     user = db.relationship("User")
@@ -79,4 +82,7 @@ class ProjectMember(db.Model):
             "username": self.user.username if self.user else None,
             "email": self.user.email if self.user else None,
             "role": self.role.value,
+            "can_manage_sections": self.can_manage_sections,
+            "can_review_work": self.can_review_work,
         }
+

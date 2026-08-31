@@ -73,8 +73,13 @@ def project_role_required(min_role="member"):
             membership = get_membership(project_id, user.id)
             if membership is None:
                 return jsonify(error="You are not a member of this project."), 403
-            if min_role == "leader" and membership.role.value != "leader":
+            is_leader = membership.role.value == "leader"
+            if min_role == "leader" and not is_leader:
                 return jsonify(error="Leader privileges required."), 403
+            if min_role == "manage" and not (is_leader or membership.can_manage_sections):
+                return jsonify(error="Section-management privileges required."), 403
+            if min_role == "review" and not (is_leader or membership.can_review_work):
+                return jsonify(error="Review privileges required."), 403
 
             g.current_user = user
             g.membership = membership

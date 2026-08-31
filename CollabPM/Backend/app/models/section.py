@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.extensions import db
 
@@ -7,6 +7,7 @@ from app.extensions import db
 class SectionStatus(enum.Enum):
     not_started = "not_started"
     in_progress = "in_progress"
+    pending_review = "pending_review"
     done = "done"
 
 
@@ -15,6 +16,15 @@ section_assignees = db.Table(
     "section_assignees",
     db.Column("section_id", db.Integer, db.ForeignKey("sections.id", ondelete="CASCADE"), primary_key=True),
     db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+)
+
+# Many-to-many, self-referential: which sections must finish before this one
+# can start. A section with no predecessors can start immediately (or on an
+# explicit due_at); sections that share a predecessor run in parallel.
+section_predecessors = db.Table(
+    "section_predecessors",
+    db.Column("section_id", db.Integer, db.ForeignKey("sections.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("predecessor_id", db.Integer, db.ForeignKey("sections.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -41,6 +51,16 @@ class Section(db.Model):
     # started_at + duration in their own timezone.
     duration_hours = db.Column(db.Integer, nullable=True)
     started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # Explicit deadline, set directly. If present, this overrides the
+    # duration-based calculation in computed_deadline() below.
+    due_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # Set the moment a section is approved as done (see section_service.py's
+    # review_section). Used as the "start clock" for anything that lists this
+    # section as a predecessor.
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -57,7 +77,43 @@ class Section(db.Model):
     )
     assignees = db.relationship("User", secondary=section_assignees)
 
+    # Self-referential many-to-many: the sections that must complete before
+    # this one can start. Deliberately NOT a backref -- "predecessor of" and
+    # "successor of" are different directions and we only need one here.
+    predecessors = db.relationship(
+        "Section",
+        secondary=section_predecessors,
+        primaryjoin=id == section_predecessors.c.section_id,
+        secondaryjoin=id == section_predecessors.c.predecessor_id,
+    )
+
+    def computed_deadline(self):
+        """Resolve this section's effective deadline, in priority order:
+        1. An explicit due_at, if set.
+        2. started_at + duration_hours, if this section has no predecessors.
+        3. (latest predecessor completion) + duration_hours, once ALL
+           predecessors are done. Returns None if any predecessor is still
+           outstanding, or if there isn't enough information yet.
+        """
+        if self.due_at is not None:
+            return self.due_at
+        if self.duration_hours is None:
+            return None
+
+        if not self.predecessors:
+            base = self.started_at
+        else:
+            done_times = [p.completed_at for p in self.predecessors if p.completed_at is not None]
+            if len(done_times) < len(self.predecessors):
+                return None  # not every predecessor has finished yet
+            base = max(done_times)
+
+        if base is None:
+            return None
+        return base + timedelta(hours=self.duration_hours)
+
     def to_dict(self, recursive=True):
+        deadline = self.computed_deadline()
         data = {
             "id": self.id,
             "project_id": self.project_id,
@@ -68,6 +124,10 @@ class Section(db.Model):
             "status": self.status.value,
             "duration_hours": self.duration_hours,
             "started_at": self.started_at.isoformat() if self.started_at else None,
+            "due_at": self.due_at.isoformat() if self.due_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "predecessor_ids": [p.id for p in self.predecessors],
+            "computed_deadline": deadline.isoformat() if deadline else None,
             "assignees": [{"user_id": u.id, "username": u.username} for u in self.assignees],
         }
         if recursive:

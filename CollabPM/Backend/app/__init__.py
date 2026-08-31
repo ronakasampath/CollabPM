@@ -6,6 +6,8 @@ from config import Config
 from app.extensions import db, jwt, migrate
 
 
+
+
 def create_app(config_class=Config):
     """Application factory: builds and returns a configured Flask app.
 
@@ -78,6 +80,15 @@ def create_app(config_class=Config):
     from app.routes.notifications import notifications_bp
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
+    from app.routes.users import users_bp
+    app.register_blueprint(users_bp, url_prefix="/api/users")
+
+    from app.routes.invitations import invitations_bp
+    app.register_blueprint(invitations_bp, url_prefix="/api")
+
+    from app.routes.templates import templates_bp
+    app.register_blueprint(templates_bp, url_prefix="/api")
+
     # --- Custom CLI command ---
     # Registers `flask init-db`. Running it creates every table that doesn't
     # already exist. This is a simple stand-in for real migrations; later we'll
@@ -112,3 +123,31 @@ def create_app(config_class=Config):
         print(f"Created {created} deadline notification(s).")
 
     return app
+
+
+    # Scan for sections whose deadline is near and create/email alerts.
+    # Run periodically (cron / a scheduled task): flask --app run scan-deadlines
+    @app.cli.command("scan-deadlines")
+    def scan_deadlines_cmd():
+        from app.services.notification_service import scan_deadlines
+
+        created = scan_deadlines(within_hours=24)
+        print(f"Created {created} deadline notification(s).")
+
+    # Scan for sections whose deadline has already passed and create/email
+    # overdue alerts. Run periodically: flask --app run scan-overdue
+    @app.cli.command("scan-overdue")
+    def scan_overdue_cmd():
+        from app.services.notification_service import scan_overdue
+
+        created = scan_overdue()
+        print(f"Created {created} overdue notification(s).")
+
+    return app
+
+    @app.cli.command("scan-overdue")
+    def scan_overdue_cmd():
+        from app.services.notification_service import scan_overdue
+
+        created = scan_overdue()
+        print(f"Created {created} overdue notification(s).")

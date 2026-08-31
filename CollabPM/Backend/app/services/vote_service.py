@@ -55,6 +55,10 @@ def call_vote(project, caller, *, section_id, title, description, scope, options
         section = Section.query.filter_by(id=section_id, project_id=project.id).first()
         if section is None:
             raise ServiceError("Section not found in this project.", 404)
+        # Only this specific section's assignee(s) may call a vote on it --
+        # leadership alone does not qualify.
+        if caller.id not in {u.id for u in section.assignees}:
+            raise ServiceError("Only this section's assignee(s) can call a vote here.", 403)
 
     if not closes_at:
         raise ServiceError("A closing time is required.", 400)
@@ -94,8 +98,6 @@ def cast_ballot(vote_id, user, option_id):
     """The ONLY way a count changes. Locks the vote row, verifies eligibility
     and no prior ballot, increments the chosen option, records the ballot.
     """
-    # with_for_update locks this vote's row on Postgres so two simultaneous
-    # casts can't both read the same count and lose an increment.
     vote = db.session.query(Vote).filter_by(id=vote_id).with_for_update().first()
     if vote is None:
         raise ServiceError("Vote not found.", 404)
@@ -112,8 +114,6 @@ def cast_ballot(vote_id, user, option_id):
     if VoteBallot.query.filter_by(vote_id=vote.id, user_id=user.id).first():
         raise ServiceError("You have already voted.", 409)
 
-    # Reassign a NEW options list (not an in-place edit) so SQLAlchemy detects
-    # the JSON change and writes it back.
     found = False
     new_options = []
     for o in vote.options:
@@ -132,3 +132,11 @@ def cast_ballot(vote_id, user, option_id):
 
 def project_votes(project_id):
     return Vote.query.filter_by(project_id=project_id).order_by(Vote.created_at.desc()).all()
+
+
+def my_called_votes(user_id):
+    return (
+        Vote.query.filter_by(created_by=user_id)
+        .order_by(Vote.created_at.desc())
+        .all()
+    )

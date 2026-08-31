@@ -37,6 +37,11 @@ class Config:
     # use it, and leaving it on wastes memory, so we explicitly disable it.
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,  # test each connection with a lightweight query before use
+        "pool_recycle": 280,  # proactively recycle connections before Supabase's idle timeout
+    }
+
     # --- JWT (auth tokens) ---
     # The secret used to SIGN access tokens. Anyone who has this key can forge
     # valid tokens, so treat it like a password: long, random, secret in prod.
@@ -70,3 +75,5 @@ class Config:
 
     # How long an email verification code stays valid.
     VERIFICATION_CODE_TTL = timedelta(minutes=15)
+
+
